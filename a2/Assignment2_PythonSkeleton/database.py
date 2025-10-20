@@ -7,8 +7,8 @@ import psycopg2
 
 def openConnection():
     # connection parameters - ENTER YOUR LOGIN AND PASSWORD HERE
-    userid = "y25s2c9120_unikey"
-    passwd = ""
+    userid = "y25s2c9120_hahe0080"
+    passwd = "Jh1234567890"
     myHost = "awsprddbs4836.shared.sydney.edu.au"
 
     # Create a connection to the database
@@ -41,7 +41,7 @@ def checkLogin(login, password):
 
     sql = """
     SELECT login, firstName, lastName, role
-    FROM users
+    FROM Account
     WHERE login = %s AND password = %s;
     """
     cur.execute(sql, (login, password))
@@ -85,7 +85,31 @@ Returns:
 """
 def list_users(): 
    
-    return None
+    conn = openConnection()
+    cur = conn.cursor()
+    sql = """
+    SELECT login, firstName, lastName, email, role
+    FROM Account;
+    """
+    cur.execute(sql)
+    rows = cur.fetchall()
+
+    users = []
+    for row in rows:
+        users.append({
+            'login': row[0],
+            'firstName': row[1],
+            'lastName': row[2],
+            'email': row[3],
+            'role': row[4]
+        })
+    
+    cur.close()
+    conn.close()
+    
+    return users
+
+
 
 """
 Retrieve all reviews from the database with associated track and customer information
