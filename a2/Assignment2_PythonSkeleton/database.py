@@ -36,8 +36,26 @@ Returns:
     [login, firstName, lastName, role] if valid, None if invalid
 '''
 def checkLogin(login, password):
-   
-    return ['jdoe', 'John', 'Doe' , 'Customer']
+    conn = openConnection()
+    cur = conn.cursor()
+
+    sql = """
+    SELECT login, firstName, lastName, role
+    FROM users
+    WHERE login = %s AND password = %s;
+    """
+    cur.execute(sql, (login, password))
+    row = cur.fetchone()
+
+    cur.close()
+    conn.close()
+
+    if row:
+        return list(row)
+    else:
+        return None
+
+
 
 """
 Retrieve all tracks from the database with associated artist information and average ratings
