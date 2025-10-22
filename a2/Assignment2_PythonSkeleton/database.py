@@ -230,7 +230,19 @@ Parameters:
 Returns:
     True if user updated successfully, False if error occurred
 """
-def update_user(user_login, firstname, lastname ,email ):
-
-    return True
-
+def update_user(user_login, firstname, lastname ,email):
+    try:
+        conn = openConnection()
+        cur = conn.cursor()
+        sql  = """
+        UPDATE Account
+        SET firstname = %s, lastname = %s, email = %s
+        WHERE login = %s
+        """
+        cur.execute(sql, (firstname, lastname, email, user_login))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return True
+    except Exception as e:
+        return False
