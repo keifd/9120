@@ -158,8 +158,22 @@ Returns:
     True if user added successfully, False if error occurred
 """
 def add_user(login, firstname, lastname, password, email, role):
-
-    return True
+    try:
+        conn = openConnection()
+        cur = conn.cursor()
+        sql = """
+        INSERT INTO Account
+        (login, firstname, lastname, password, email, role)
+        VALUES
+        (%s, %s, %s, %s, %s, %s)
+        """
+        cur.execute(sql, (login, firstname, lastname, password, email, role))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return True
+    except Exception as e:
+        return False
 
 """
 Add a new review to the database
