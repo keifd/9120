@@ -7,8 +7,8 @@ import psycopg2
 
 def openConnection():
     # connection parameters - ENTER YOUR LOGIN AND PASSWORD HERE
-    userid = "y25s2c9120_hahe0080"
-    passwd = "Jh1234567890"
+    userid = "y25s2c9120_yche0038"
+    passwd = "chenyuhao0829"
     myHost = "awsprddbs4836.shared.sydney.edu.au"
 
     # Create a connection to the database
@@ -55,8 +55,6 @@ def checkLogin(login, password):
     else:
         return None
 
-
-
 """
 Retrieve all tracks from the database with associated artist information and average ratings
 Returns:
@@ -70,8 +68,79 @@ Returns:
         - avg_rating: Average rating from all reviews (0 if no reviews)
 """
 def list_tracks(): 
-    
-    return None
+    try:
+        conn = openConnection()
+        cur = conn.cursor()
+        sql = """
+        SELECT t.id AS trackid, 
+               t.title, 
+               t.duration, 
+               t.age_restriction, 
+               (s_acc.firstname || ' ' || s_acc.lastname) AS singer_name,
+               (c_acc.firstname || ' ' || c_acc.lastname) AS composer_name,
+               COALESCE(AVG(r.rating), 0) AS avg_rating
+        FROM Track t
+        LEFT JOIN Artist s_art ON s_art.login = t.singer
+        LEFT JOIN Account s_acc ON s_acc.login = s_art.login
+        LEFT JOIN Artist c_art ON c_art.login = t.composer
+        LEFT JOIN Account c_acc ON c_acc.login = c_art.login
+        LEFT JOIN Review r ON r.trackID = t.id
+        GROUP BY
+            t.id, t.title, t.duration, t.age_restriction, s_acc.firstname, s_acc.lastname, c_acc.firstname, c_acc.lastname
+        ORDER BY t.id
+        """
+        cur.execute(sql)
+        row = cur.fetchall()
+        tracks = []
+        for a in row:
+            trackid = a[0]
+            title = a[1]
+            duration = a[2]
+            age = a[3]
+            singer_name = a[4]
+            composer_name = a[5]
+            avg_rating = a[6]
+            if duration is not None:
+                duration_text = f"{float(duration):.2f}"
+            else:
+                duration_text = ''
+            if avg_rating is None:
+                avg_txt = '0'
+            else:
+                avg_flo = float(avg_rating)
+                if avg_flo == 0.0:
+                    avg_txt = '0'
+                else:
+                    avg_txt = f"{avg_flo:.2f}"
+            if singer_name is None:
+                singer_txt = ''
+            else:
+                singer_txt = singer_name
+            
+            if composer_name is not None:
+                composer_text = composer_name
+            else:
+                composer_text = ''
+        
+            
+            tracks.append({
+                'trackid':trackid,
+                'title': title,
+                'duration': duration_text,
+                'age_restriction': age,
+                'singer_name': singer_txt,
+                'composer_name': composer_text,
+                'avg_rating':avg_txt
+            }
+            )
+        cur.close()
+        conn.close()
+        return tracks 
+    except Exception as e:
+        print("SQL ERROR in function list_tracks")
+        print(e)
+        return None
+
 
 """
 Retrieve all users from the database
@@ -109,8 +178,6 @@ def list_users():
     
     return users
 
-
-
 """
 Retrieve all reviews from the database with associated track and customer information
 Returns:
@@ -125,7 +192,68 @@ Returns:
 """
 def list_reviews(): 
     
-    return None
+    conn = openConnection()
+    cur = conn.cursor()
+
+    sql = """
+    SELECT 
+        r.reviewID,
+        r.trackID,
+        t.title,
+        r.rating,
+        r.content,
+        r.customerID,
+        a.firstname,
+        a.lastname,
+        r.reviewDate
+    FROM Review r
+    JOIN Track t ON t.id = r.trackID
+    JOIN Customer c ON c.login = r.customerID
+    JOIN Account a ON a.login = c.login
+    ORDER BY r.reviewDate DESC, r.reviewID DESC;
+    """
+
+    cur.execute(sql)
+    rows = cur.fetchall()
+
+    reviews = []
+
+    for row in rows:
+        if row[6]:
+            first = row[6]
+        else:
+            first = ""
+
+        if row[7]:
+            last = row[7]
+        else:
+            last = ""
+
+        customer_name = (first + " " + last).strip()
+
+        review_date = ""
+        if row[8]:
+            try:
+                review_date = row[8].strftime("%d-%m-%Y")
+            except Exception as e:
+                review_date = str(row[8])
+
+        review = {
+            'reviewid': row[0],
+            'trackid': row[1],
+            'track_title': row[2],    
+            'rating': row[3],
+            'content': row[4],
+            'customer_login': row[5],  
+            'customer_name': customer_name, 
+            'review_date': review_date       
+        }
+        reviews.append(review)
+
+    cur.close()
+    conn.close()
+
+    return reviews
 
 """
 Search for tracks based on a search string
@@ -142,8 +270,82 @@ Returns:
         - avg_rating: Average rating from all reviews (0 if no reviews)
 """
 def find_tracks(searchString):
-    
-    return None
+    try:
+        conn = openConnection()
+        cur = conn.cursor()
+        search = "%" + searchString +"%"
+        sql = """
+        SELECT t.id AS trackid, 
+               t.title, 
+               t.duration, 
+               t.age_restriction, 
+               (s_acc.firstname || ' ' || s_acc.lastname) AS singer_name,
+               (c_acc.firstname || ' ' || c_acc.lastname) AS composer_name,
+               COALESCE(AVG(r.rating), 0) AS avg_rating
+        FROM Track t
+        LEFT JOIN Artist s_art ON s_art.login = t.singer
+        LEFT JOIN Account s_acc ON s_acc.login = s_art.login
+        LEFT JOIN Artist c_art ON c_art.login = t.composer
+        LEFT JOIN Account c_acc ON c_acc.login = c_art.login
+        LEFT JOIN Review r ON r.trackID = t.id
+        WHERE t.title ILIKE %s
+        GROUP BY
+            t.id, t.title, t.duration, t.age_restriction, s_acc.firstname, s_acc.lastname, c_acc.firstname, c_acc.lastname
+        ORDER BY t.id,avg_rating DESC
+        """
+        cur.execute(sql, (search,))
+        row = cur.fetchall()
+        tracks = []
+        for a in row:
+            trackid = a[0]
+            title = a[1]
+            duration = a[2]
+            age = a[3]
+            singer_name = a[4]
+            composer_name = a[5]
+            avg_rating = a[6]
+            if duration is not None:
+                duration_text = f"{float(duration):.2f}"
+            else:
+                duration_text = ''
+            
+            if avg_rating is None:
+                avg_txt = '0'
+            else:
+                avg_flo = float(avg_rating)
+                if avg_flo == 0.0:
+                    avg_txt = '0'
+                else:
+                    avg_txt = f"{avg_flo:.2f}"
+                
+            if singer_name is None:
+                singer_txt = ''
+            else:
+                singer_txt = singer_name
+            
+            if composer_name is not None:
+                composer_text = composer_name
+            else:
+                composer_text = ''
+        
+            
+            tracks.append({
+                'trackid':trackid,
+                'title': title,
+                'duration': duration_text,
+                'age_restriction': age,
+                'singer_name': singer_txt,
+                'composer_name': composer_text,
+                'avg_rating':avg_txt
+            }
+            )
+        cur.close()
+        conn.close()
+        return tracks 
+    except Exception as e:
+        print("SQL ERROR in function find_tracks")
+        print(e)
+        return None
 
 """
 Add a new user to the database
@@ -188,7 +390,21 @@ Returns:
 """
 def add_review(trackid, rating, customer_login, content, review_date):
    
-    return True
+    try:
+        conn = openConnection()
+        cur = conn.cursor()
+        sql = """
+        INSERT INTO Review (trackID, content, rating, customerID, reviewDate)
+        VALUES 
+        (%s, %s, %s, %s, %s)
+        """
+        cur.execute(sql, (trackid, content, rating, customer_login, review_date))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return True
+    except Exception as e:
+        return False
 
 """
 Update an existing track in the database
@@ -203,8 +419,102 @@ Returns:
     True if track updated successfully, False if error occurred
 """
 def update_track(trackid, title, duration, age_restriction, singer_login, composer_login):
+    conn = None
+    cur = None
+    try:
+        conn = openConnection()
+        cur = conn.cursor()
 
-    return True
+        duration_value = None
+        if duration is not None:
+            duration_text = str(duration)
+            if duration_text != "":
+                try:
+                    duration_value = float(duration_text)
+                except ValueError:
+                    return False
+
+        age_value = age_restriction
+        if isinstance(age_value, str):
+            normalized_age = age_value.lower()
+            if normalized_age == "":
+                age_value = None
+            else:
+                age_value = normalized_age in ("true", "t", "1", "yes", "y")
+
+        singer_value = None
+        if singer_login is not None:
+            normalized = str(singer_login).strip()
+            if normalized != "":
+                normalized = ' '.join(normalized.split())
+                cur.execute(
+                    "SELECT login FROM Artist WHERE LOWER(login) = LOWER(%s)",
+                    (normalized,)
+                )
+                singer_row = cur.fetchone()
+                if singer_row is None and " " in normalized:
+                    name_parts = normalized.split()
+                    first_part = name_parts[0]
+                    last_part = " ".join(name_parts[1:])
+                    cur.execute(
+                        """
+                        SELECT ar.login
+                        FROM Artist ar
+                        JOIN Account acc ON acc.login = ar.login
+                        WHERE LOWER(acc.firstname) = LOWER(%s)
+                          AND LOWER(acc.lastname) = LOWER(%s)
+                        """,
+                        (first_part, last_part)
+                    )
+                    singer_row = cur.fetchone()
+                if singer_row is None:
+                    return False
+                singer_value = singer_row[0]
+
+        composer_value = None
+        if composer_login is not None:
+            normalized = str(composer_login).strip()
+            if normalized != "":
+                normalized = ' '.join(normalized.split())
+                cur.execute(
+                    "SELECT login FROM Artist WHERE LOWER(login) = LOWER(%s)",
+                    (normalized,)
+                )
+                composer_row = cur.fetchone()
+                if composer_row is None and " " in normalized:
+                    name_parts = normalized.split()
+                    first_part = name_parts[0]
+                    last_part = " ".join(name_parts[1:])
+                    cur.execute(
+                        """
+                        SELECT ar.login
+                        FROM Artist ar
+                        JOIN Account acc ON acc.login = ar.login
+                        WHERE LOWER(acc.firstname) = LOWER(%s)
+                          AND LOWER(acc.lastname) = LOWER(%s)
+                        """,
+                        (first_part, last_part)
+                    )
+                    composer_row = cur.fetchone()
+                if composer_row is None:
+                    return False
+                composer_value = composer_row[0]
+
+        sql = """
+        UPDATE Track
+        SET title = %s, duration = %s, age_restriction= %s, composer = %s,singer = %s
+        WHERE id = %s
+        """
+        cur.execute(sql, (title, duration_value, age_value, composer_value, singer_value, trackid))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return cur.rowcount == 1
+    except Exception as e:
+        print("SQL ERROR in function update_track")
+        print(e)
+        return False
+
 
 """
 Update an existing review in the database
@@ -217,9 +527,22 @@ Returns:
     True if review updated successfully, False if error occurred
 """
 def update_review(reviewid, rating, content):
-
-    return True
-
+    try:
+        conn = openConnection()
+        cur = conn.cursor()
+        sql = """
+        UPDATE Review
+        SET rating = %s,
+            content = %s
+        WHERE reviewID = %s
+        """
+        cur.execute(sql, (rating, content, reviewid))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return True
+    except Exception as e:
+        return False
 """
 Update an existing user in the database
 Parameters:
