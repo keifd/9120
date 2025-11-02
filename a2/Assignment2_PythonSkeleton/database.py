@@ -78,7 +78,7 @@ def list_tracks():
                t.age_restriction, 
                (s_acc.firstname || ' ' || s_acc.lastname) AS singer_name,
                (c_acc.firstname || ' ' || c_acc.lastname) AS composer_name,
-               COALESCE(AVG(r.rating), 0) AS avg_rating
+               get_average_rating(t.id) AS avg_rating
         FROM Track t
         LEFT JOIN Artist s_art ON s_art.login = t.singer
         LEFT JOIN Account s_acc ON s_acc.login = s_art.login
@@ -140,7 +140,6 @@ def list_tracks():
         print("SQL ERROR in function list_tracks")
         print(e)
         return None
-
 
 """
 Retrieve all users from the database
@@ -444,58 +443,38 @@ def update_track(trackid, title, duration, age_restriction, singer_login, compos
 
         singer_value = None
         if singer_login is not None:
-            normalized = str(singer_login).strip()
-            if normalized != "":
-                normalized = ' '.join(normalized.split())
+            singer_text = str(singer_login).strip()
+            if singer_text != "":
                 cur.execute(
-                    "SELECT login FROM Artist WHERE LOWER(login) = LOWER(%s)",
-                    (normalized,)
+                    """
+                    SELECT ar.login
+                    FROM Artist ar
+                    JOIN Account acc ON acc.login = ar.login
+                    WHERE LOWER(ar.login) = LOWER(%s)
+                       OR LOWER(TRIM(COALESCE(acc.firstname, '') || ' ' || COALESCE(acc.lastname, ''))) = LOWER(TRIM(%s))
+                    """,
+                    (singer_text, singer_text)
                 )
                 singer_row = cur.fetchone()
-                if singer_row is None and " " in normalized:
-                    name_parts = normalized.split()
-                    first_part = name_parts[0]
-                    last_part = " ".join(name_parts[1:])
-                    cur.execute(
-                        """
-                        SELECT ar.login
-                        FROM Artist ar
-                        JOIN Account acc ON acc.login = ar.login
-                        WHERE LOWER(acc.firstname) = LOWER(%s)
-                          AND LOWER(acc.lastname) = LOWER(%s)
-                        """,
-                        (first_part, last_part)
-                    )
-                    singer_row = cur.fetchone()
                 if singer_row is None:
                     return False
                 singer_value = singer_row[0]
 
         composer_value = None
         if composer_login is not None:
-            normalized = str(composer_login).strip()
-            if normalized != "":
-                normalized = ' '.join(normalized.split())
+            composer_text = str(composer_login).strip()
+            if composer_text != "":
                 cur.execute(
-                    "SELECT login FROM Artist WHERE LOWER(login) = LOWER(%s)",
-                    (normalized,)
+                    """
+                    SELECT ar.login
+                    FROM Artist ar
+                    JOIN Account acc ON acc.login = ar.login
+                    WHERE LOWER(ar.login) = LOWER(%s)
+                       OR LOWER(TRIM(COALESCE(acc.firstname, '') || ' ' || COALESCE(acc.lastname, ''))) = LOWER(TRIM(%s))
+                    """,
+                    (composer_text, composer_text)
                 )
                 composer_row = cur.fetchone()
-                if composer_row is None and " " in normalized:
-                    name_parts = normalized.split()
-                    first_part = name_parts[0]
-                    last_part = " ".join(name_parts[1:])
-                    cur.execute(
-                        """
-                        SELECT ar.login
-                        FROM Artist ar
-                        JOIN Account acc ON acc.login = ar.login
-                        WHERE LOWER(acc.firstname) = LOWER(%s)
-                          AND LOWER(acc.lastname) = LOWER(%s)
-                        """,
-                        (first_part, last_part)
-                    )
-                    composer_row = cur.fetchone()
                 if composer_row is None:
                     return False
                 composer_value = composer_row[0]

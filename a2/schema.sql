@@ -122,7 +122,10 @@ VALUES
     (11,'This song has been on repeat all day! Dream Girls really delivered a masterpiece here.',5, 'pop', '2025-07-21'),
     (11,'Best release of the year! The production quality is outstanding and the vocals are flawless.',5, 'fan_maria', '2025-07-22');
 
-
-/* testing*/
-SELECT * 
-FROM Account
+CREATE FUNCTION get_average_rating(track_id INT)
+RETURNS NUMERIC
+AS $$
+    SELECT COALESCE(AVG(rating), 0)
+    FROM Review
+    WHERE trackID = track_id;
+$$ LANGUAGE SQL;
