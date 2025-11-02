@@ -133,4 +133,17 @@ AS $$
     WHERE trackID = track_id;
 $$ LANGUAGE SQL;
 
+CREATE FUNCTION list_users()
+RETURNS TABLE (
+    login VARCHAR,
+    firstname VARCHAR,
+    lastname VARCHAR,
+    email VARCHAR,
+    role VARCHAR
+)
+LANGUAGE SQL
+AS $$
+    SELECT login, firstname, lastname, email, role
+    FROM Account;
+$$;
 
