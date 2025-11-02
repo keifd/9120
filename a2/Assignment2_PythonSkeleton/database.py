@@ -7,8 +7,8 @@ import psycopg2
 
 def openConnection():
     # connection parameters - ENTER YOUR LOGIN AND PASSWORD HERE
-    userid = "y25s2c9120_yche0038"
-    passwd = "chenyuhao0829"
+    userid = "y25s2c9120_hahe0080"
+    passwd = "Jh1234567890"
     myHost = "awsprddbs4836.shared.sydney.edu.au"
 
     # Create a connection to the database
@@ -151,31 +151,28 @@ Returns:
         - email: User's email address
         - role: User's role (Customer, Artist, Staff)
 """
-def list_users(): 
-   
+def list_users():
     conn = openConnection()
     cur = conn.cursor()
-    sql = """
-    SELECT login, firstName, lastName, email, role
-    FROM Account;
-    """
-    cur.execute(sql)
+    
+    cur.execute("SELECT * FROM list_users();")
     rows = cur.fetchall()
-
-    users = []
-    for row in rows:
-        users.append({
+    
+    users = [
+        {
             'login': row[0],
             'firstName': row[1],
             'lastName': row[2],
             'email': row[3],
             'role': row[4]
-        })
+        }
+        for row in rows
+    ]
     
     cur.close()
     conn.close()
-    
     return users
+
 
 """
 Retrieve all reviews from the database with associated track and customer information
@@ -532,19 +529,37 @@ Parameters:
 Returns:
     True if user updated successfully, False if error occurred
 """
-def update_user(user_login, firstname, lastname ,email):
+def update_user(user_login, firstname, lastname, email):
     try:
         conn = openConnection()
         cur = conn.cursor()
-        sql  = """
-        UPDATE Account
-        SET firstname = %s, lastname = %s, email = %s
-        WHERE login = %s
-        """
-        cur.execute(sql, (firstname, lastname, email, user_login))
+
+        # Ensure mandatory fields are never NULL
+        firstname = (firstname or "").strip()
+        lastname = (lastname or "").strip()
+        email = email.strip() if email and email.strip() else None
+
+        # Update user
+        cur.execute(
+            """
+            UPDATE Account
+            SET firstname=%s, lastname=%s, email=%s
+            WHERE LOWER(login)=LOWER(%s)
+            """,
+            (firstname, lastname, email, user_login)
+        )
+
         conn.commit()
-        cur.close()
-        conn.close()
-        return True
-    except Exception as e:
+        return cur.rowcount == 1  # True if exactly one row updated
+
+    except Exception as exc:
+        if conn:
+            conn.rollback()
+        print("SQL ERROR in function update_user:", exc)
         return False
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()

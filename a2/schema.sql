@@ -3,6 +3,9 @@
 -- SET SCHEMA 'sydneymusic';
 -- SET datestyle = 'ISO, DMY';
 
+DROP PROCEDURE IF EXISTS update_user(VARCHAR, VARCHAR, VARCHAR, VARCHAR);
+
+
 CREATE TABLE
     Account (
         login VARCHAR(30) PRIMARY KEY,
@@ -129,3 +132,5 @@ AS $$
     FROM Review
     WHERE trackID = track_id;
 $$ LANGUAGE SQL;
+
+
